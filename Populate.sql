@@ -8,7 +8,7 @@ INSERT INTO enfermeiro VALUES
     ('345678901', 'Nurse C', '765432109', '345 Pine Street, City E', 'Clinic A');
 
 INSERT INTO medico VALUES 
-    ('456789012', 'Doctor A', '654321098', '234 Cedar Street, City F', 'Cardiology'),
+    ('456789012', 'Doctor A', '654321098', '234 Cedar Street, City F', 'Cardiology'), -- tmb é o paciente D
     ('567890123', 'Doctor B', '543210987', '456 Birch Avenue, City G', 'Orthopedics'),
     ('678901234', 'Doctor C', '432109876', '678 Elm Street, City H', 'Pediatrics');
 
@@ -53,53 +53,34 @@ INSERT INTO paciente VALUES
 -- Appointments for Patient A
 INSERT INTO consulta (ssn, nif, nome, data, hora, codigo_sns)
     VALUES 
-    ('12345678901', '456789012', 'Clinic A', '2024-05-17', '08:00', '123456789012'),
+    ('12345678901', '456789012', 'Clinic B', '2024-05-17', '08:00', '123456789012'),
     ('12345678901', '567890123', 'Clinic B', '2024-05-18', '10:30', '234567890123'),
     ('12345678901', '678901234', 'Clinic A', '2024-05-19', '14:00', '345678901234');
 
 -- Appointments for Patient B
 INSERT INTO consulta (ssn, nif, nome, data, hora, codigo_sns)
     VALUES 
-    ('23456789012', '567890123', 'Clinic B', '2024-05-17', '09:30', '456789012345'),
+    ('23456789012', '567890123', 'Clinic A', '2024-05-17', '09:30', '456789012345'),
     ('23456789012', '678901234', 'Clinic A', '2024-05-18', '11:00', '567890123456'),
     ('23456789012', '456789012', 'Clinic A', '2024-05-19', '15:00', '678901234567');
 
 -- Appointments for Patient C
 INSERT INTO consulta (ssn, nif, nome, data, hora, codigo_sns)
     VALUES 
-    ('34567890123', '678901234', 'Clinic A', '2024-05-17', '10:00', '789012345678'),
-    ('34567890123', '456789012', 'Clinic B', '2024-05-18', '12:30', '890123456789'),
-    ('34567890123', '567890123', 'Clinic A', '2024-05-19', '16:30', '901234567890');
-
--- Appointments for Patient D
-INSERT INTO consulta (ssn, nif, nome, data, hora, codigo_sns)
-    VALUES
-    ('45678901234', '456789012', 'Clinic A', '2024-05-17', '11:30', '012345678901'),
-    ('45678901234', '567890123', 'Clinic B', '2024-05-18', '13:00', '123456789012'),
-    ('45678901234', '678901234', 'Clinic A', '2024-05-19', '17:00', '234567890123');
-
--- Appointments for Patient E
-INSERT INTO consulta (ssn, nif, nome, data, hora, codigo_sns)
-    VALUES 
-    ('56789012345', '567890123', 'Clinic B', '2024-05-17', '12:00', '345678901234'),
-    ('56789012345', '678901234', 'Clinic A', '2024-05-18', '14:30', '456789012345'),
-    ('56789012345', '456789012', 'Clinic A', '2024-05-19', '18:30', '567890123456');
+    ('34567890123', '678901234', 'Clinic B', '2024-05-17', '10:00', '789012345678'),
+    ('34567890123', '456789012', 'Clinic A', '2024-05-18', '12:30', '890123456789'),
+    ('34567890123', '567890123', 'Clinic B', '2024-05-19', '16:30', '901234567890');
 
 -- Observations
 INSERT INTO observacao (id, parametro, valor) VALUES 
-    (1, 'Blood Pressure', 120),
-    (1, 'Heart Rate', 80),
-    (2, 'Blood Pressure', 130),
-    (2, 'Heart Rate', 75),
-    (3, 'Cough', NULL),
-    (4, 'Blood Pressure', 125),
-    (4, 'Heart Rate', 85),
-    (5, 'Cough', NULL);
+    (15, 'Blood Pressure', 120),
+    (16, 'Heart Rate', 80),
+    (20, 'Blood Pressure', 130),
+    (21, 'Heart Rate', 75),
+    (23, 'Cough', NULL);
 
 -- Prescriptions
 INSERT INTO receita (codigo_sns, medicamento, quantidade) VALUES 
     ('123456789012', 'Paracetamol', 20),
     ('234567890123', 'Ibuprofen', 30),
-    ('345678901234', 'Amoxicillin', 15),
-    ('456789012345', 'Cough Syrup', 2),
-    ('567890123456', 'Antihistamine', 25);
+    ('345678901234', 'Amoxicillin', 15);

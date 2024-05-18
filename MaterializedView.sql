@@ -23,11 +23,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS historial_paciente AS
     FROM
         consulta con INNER JOIN clinica cli ON con.nome = cli.nome
         INNER JOIN medico med ON con.nif = med.nif 
-        INNER JOIN receita rec ON con.codigo_sns = con.codigo_sns;
-
-
-
-
+        INNER JOIN receita rec ON con.codigo_sns = rec.codigo_sns;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS historial_paciente AS
     SELECT
@@ -51,6 +47,4 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS historial_paciente AS
         consulta con INNER JOIN clinica cli ON con.nome = cli.nome
         INNER JOIN medico med ON con.nif = med.nif
         LEFT OUTER JOIN observacao obs ON con.id = obs.id
-        LEFT OUTER JOIN receita rec ON rec.codigo_sns.= med.codigo_sns;
-            
-
+        LEFT OUTER JOIN receita rec ON rec.codigo_sns = con.codigo_sns;

@@ -153,7 +153,10 @@ def gera_hora_consulta():
     if (int(horas) < 10):
         horas = '0' + horas
     mins = [':00:00', ':30:00']
-    return horas + random.choice(mins)
+    minutos = random.choice(mins)
+    if (horas == '13') or (horas == '19'):
+        minutos = mins[0]
+    return horas + minutos
 
 def gera_codigo_sns(escolhidos):
     codigo = random.randint(100000000000, 999999999999)
@@ -169,19 +172,22 @@ start_date = datetime.date(2023, 1, 1)
 end_date = datetime.date(2023, 12, 31)
 current_date = start_date
 paciente = 0
+id = 0
 while current_date <= end_date:
     for clinic in range(len(clinicas)):
         for nif in nif_pool_clinica[clinic][current_date.weekday()]:
             if pacientes[paciente][0] == nif:
                 print("ERRO: Há um médico com autoconsulta")
             hora1 = gera_hora_consulta()
-            consultas.append((pacientes[paciente][0], nif, clinicas[clinic][0], current_date, hora1, gera_codigo_sns(codigos_sns)))
+            consultas.append((id, pacientes[paciente][0], nif, clinicas[clinic][0], current_date, hora1, gera_codigo_sns(codigos_sns)))
             paciente = (paciente + 1) % 5000
+            id += 1
             hora2 = gera_hora_consulta()
             while hora1 == hora2:
                 hora2 = gera_hora_consulta()
-            consultas.append((pacientes[paciente][0], nif, clinicas[clinic][0], current_date, hora2, gera_codigo_sns(codigos_sns)))
+            consultas.append((id, pacientes[paciente][0], nif, clinicas[clinic][0], current_date, hora2, gera_codigo_sns(codigos_sns)))
             paciente = (paciente + 1) % 5000
+            id += 1
     current_date += datetime.timedelta(days=1)
 
 print_table(consulta_out, consultas)
@@ -306,8 +312,113 @@ rec_geradas = 0
 for consulta in consultas:
     if not (1 == random.randint(1, 5)):
         rec_geradas += 1
-        gera_receita(consulta[5])
+        gera_receita(consulta[6])
 
 print(f"Aproximadamente {rec_geradas / (float) (len(consultas)) * 100}% das consultas têm receita (target: 80%)")
 
 print_table(receita_out, receitas)
+
+observacoes = []
+
+sintomas_disp = [
+        "dor de cabeça",
+        "náusea",
+        "vômito",
+        "tontura",
+        "fadiga",
+        "febre",
+        "calafrios",
+        "diarreia",
+        "constipação",
+        "dor de garganta",
+        "tosse",
+        "dor no peito",
+        "falta de ar",
+        "coriza",
+        "perda de apetite",
+        "perda de peso",
+        "sudorese",
+        "dor nas costas",
+        "dor abdominal",
+        "dor nas articulações",
+        "dor muscular",
+        "inchaço",
+        "vermelhidão",
+        "coceira",
+        "dor no ouvido",
+        "visão embassada",
+        "sensibilidade à luz",
+        "zumbido",
+        "dificuldade de concentração",
+        "dificuldade de memória",
+        "irritabilidade",
+        "ansiedade",
+        "depressão",
+        "insônia",
+        "sonolência",
+        "alterações no paladar",
+        "alterações no olfato",
+        "dor nos olhos",
+        "olhos vermelhos",
+        "olhos secos",
+        "inchaço nos olhos",
+        "sangramento nasal",
+        "dificuldade de engolir",
+        "rouquidão",
+        "dor no peito",
+        "batimentos cardíacos irregulares",
+        "pressão arterial alta",
+        "pressão arterial baixa"
+    ]
+
+observacoes_disp = [
+        "temperatura corporal",
+        "pressao arterial sistolica",
+        "pressao arterial diastolica",
+        "frequencia cardiaca",
+        "frequencia respiratoria",
+        "saturacao oxigenio",
+        "glicemia",
+        "hemoglobina",
+        "hematocrito",
+        "plaquetas",
+        "leucocitos",
+        "creatinina",
+        "colesterol total",
+        "triglicerideos",
+        "hdl colesterol",
+        "ldl colesterol",
+        "glicose",
+        "insulina",
+        "hormonio tireoide"
+    ]
+
+
+def gera_sintoma(escolhidos):
+    sintoma = random.choice(sintomas_disp)
+    while sintoma in escolhidos:
+        sintoma = random.choice(sintomas_disp)
+    escolhidos.add(sintoma)
+    return sintoma
+
+def gera_parametro(escolhidos):
+    param = random.choice(observacoes_disp)
+    while param in escolhidos:
+        param = random.choice(observacoes_disp)
+    escolhidos.add(param)
+    return (param, random.uniform(0.1, 100))
+
+def gera_observacao(id):
+    sintomas = random.randint(1, 5)
+    metricas = random.randint(0, 3)
+    escolhidos = set()
+    for _ in range(sintomas):
+        observacoes.append((id, gera_sintoma(escolhidos), 'NULL'))
+    for _ in range(metricas):
+        param = gera_parametro(escolhidos)
+        observacoes.append((id, param[0], param[1]))
+
+for consulta in consultas:
+    gera_observacao(consulta[0])
+
+print_table(observacao_out, observacoes)

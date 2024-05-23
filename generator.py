@@ -159,6 +159,7 @@ def gera_codigo_sns(escolhidos):
     codigo = random.randint(100000000000, 999999999999)
     while codigo in escolhidos:
         codigo = random.randint(100000000000, 999999999999)
+    escolhidos.add(codigo)
     return codigo
 
 consultas = []
@@ -172,7 +173,7 @@ while current_date <= end_date:
     for clinic in range(len(clinicas)):
         for nif in nif_pool_clinica[clinic][current_date.weekday()]:
             if pacientes[paciente][0] == nif:
-                print("Há um médico com autoconsulta")
+                print("ERRO: Há um médico com autoconsulta")
             hora1 = gera_hora_consulta()
             consultas.append((pacientes[paciente][0], nif, clinicas[clinic][0], current_date, hora1, gera_codigo_sns(codigos_sns)))
             paciente = (paciente + 1) % 5000
@@ -184,3 +185,129 @@ while current_date <= end_date:
     current_date += datetime.timedelta(days=1)
 
 print_table(consulta_out, consultas)
+
+receitas = []
+medicamentos_disp = [
+    "Prozac",
+    "Lipitor",
+    "Zoloft",
+    "Metformin",
+    "Advil",
+    "Xanax",
+    "Amoxicillin",
+    "Tylenol",
+    "Prednisone",
+    "Gabapentin",
+    "Viagra",
+    "Lisinopril",
+    "Adderall",
+    "Ciprofloxacin",
+    "Celexa",
+    "Ativan",
+    "Plavix",
+    "Albuterol",
+    "Ambien",
+    "Risperdal",
+    "Crestor",
+    "Prilosec",
+    "Synthroid",
+    "Nexium",
+    "Paxil",
+    "Flonase",
+    "Vicodin",
+    "Percocet",
+    "Cialis",
+    "Flexeril",
+    "Wellbutrin",
+    "Cymbalta",
+    "Dilantin",
+    "Imitrex",
+    "Claritin",
+    "OxyContin",
+    "Seroquel",
+    "Remeron",
+    "Klonopin",
+    "Clindamycin",
+    "Tramadol",
+    "Suboxone",
+    "Concerta",
+    "Neurontin",
+    "Lamictal",
+    "Topamax",
+    "Valium",
+    "Depakote",
+    "Zyrtec",
+    "Effexor",
+    "Ambien",
+    "Singulair",
+    "Levaquin",
+    "Celebrex",
+    "Allegra",
+    "Lyrica",
+    "Zofran",
+    "Prilosec",
+    "Zantac",
+    "Lunesta",
+    "Ritalin",
+    "Klonopin",
+    "Wellbutrin",
+    "Symbicort",
+    "Strattera",
+    "Pravachol",
+    "Fosamax",
+    "Elavil",
+    "Boniva",
+    "Lunesta",
+    "OxyContin",
+    "Suboxone",
+    "Cymbalta",
+    "Lexapro",
+    "Lamictal",
+    "Nasonex",
+    "Vyvanse",
+    "Geodon",
+    "Lyrica",
+    "Protonix",
+    "Namenda",
+    "Aricept",
+    "Crestor",
+    "Adderall",
+    "Ambien",
+    "Claritin",
+    "Singulair",
+    "Xanax",
+    "Effexor",
+    "Zoloft",
+    "Ativan",
+    "Zantac",
+    "Paxil",
+    "Tricor",
+    "Prozac",
+    "Neurontin",
+    "Diovan",
+    "Plavix",
+    "Klonopin",
+    "Tramadol"
+]
+
+def gera_medicamento(escolhidos):
+    medicamento = random.choice(medicamentos_disp)
+    while medicamento in escolhidos:
+        medicamento = random.choice(medicamentos_disp)
+    return medicamento
+
+def gera_receita(codigo_sns):
+    quant = random.randint(1, 6)
+    medicamentos = set()
+    for _ in range(quant):
+        receitas.append((codigo_sns, gera_medicamento(medicamentos), random.randint(1, 3)))
+
+rec_geradas = 0
+for consulta in consultas:
+    if not (1 == random.randint(1, 5)):
+        rec_geradas += 1
+        gera_receita(consulta[5])
+
+print(f"Aproximadamente {rec_geradas / (float) (len(consultas)) * 100}% das consultas têm receita (target: 80%)")
+
+print_table(receita_out, receitas)

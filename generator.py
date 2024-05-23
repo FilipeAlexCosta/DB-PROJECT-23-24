@@ -1,4 +1,8 @@
 import random
+from faker import Faker
+import datetime
+
+fake = Faker('pt_PT')
 
 clinica_out = "clinica.txt"
 enfermeiro_out = "enfermeiro.txt"
@@ -30,7 +34,7 @@ clinicas = [("Clínica A", 213456789, "Rua A, 2750-001 Cascais"),
             ("Clínica D", 216789012, "Rua D, 1249-290 Cais do Sodré"),
             ("Clínica E", 217890123, "Rua E, 2705-304 Sintra")]
 
-#print_table(clinica_out, clinicas)
+print_table(clinica_out, clinicas)
 
 enfermeiros = [('123456789', 'Enfermeiro Ana', '912345678', 'Rua das Flores, 10', 'Clinica A'),
     ('223456789', 'Enfermeiro João', '912345679', 'Avenida das Américas, 20', 'Clinica A'),
@@ -63,127 +67,94 @@ enfermeiros = [('123456789', 'Enfermeiro Ana', '912345678', 'Rua das Flores, 10'
     ('253456789', 'Enfermeiro Diogo', '912345706', 'Avenida dos Lagos, 290', 'Clinica E'),
     ('353456789', 'Enfermeiro Vanessa', '912345707', 'Rua das Amoras, 300', 'Clinica E')]
 
-#print_table(enfermeiro_out, enfermeiros)
-
-nomes_de_ruas = [
-    "do Sol",
-    "das Rosas",
-    "do Lago",
-    "das Flores",
-    "do Bosque",
-    "das Oliveiras",
-    "do Mar",
-    "da Liberdade",
-    "do Campo",
-    "das Margaridas",
-    "da Praia",
-    "do Cedro",
-    "das Acácias",
-    "da Esperança",
-    "do Vale",
-    "das Árvores",
-    "do Poente",
-    "da Serra",
-    "das Violetas",
-    "do Jardim",
-    "da Paz",
-    "do Nascente",
-    "das Cerejeiras",
-    "do Pôr do Sol",
-    "das Hortênsias",
-    "do Rio",
-    "das Palmeiras",
-    "do Amor",
-    "da Primavera",
-    "das Estrelas",
-    "do Céu",
-    "das Pedras",
-    "do Pinhal",
-    "da Alegria",
-    "do Moinho",
-    "das Laranjeiras",
-    "do Luar",
-    "das Borboletas",
-    "da Montanha",
-    "do Horizonte",
-    "das Neves",
-    "da Fé",
-    "do Paraíso",
-    "das Perdizes",
-    "do Caminho",
-    "da Figueira",
-    "do Vento",
-    "das Oliveiras",
-    "da Lua"
-]
-
-inicial_ruas = ["Rua", "Avenida", "Alameda", "Travessa", "Praça"]
+print_table(enfermeiro_out, enfermeiros)
 
 especialidades = ('ortopedia', 'cardiologia', 'neurologia', 'nefrologia', 'oncologia')
-nomes_proprios = ['Daniel', 'Tiago', 'Filipe', 'Francisco', 'Mário', 'Mariana', 'Joana', 'Maria', 'José Maria', 'Eusébio', 'Cristiano', 'Marcelo']
-sobrenomes = ['Rebelo de Sousa', 'Costa', 'Regateiro', 'Faria', 'Gianola', 'Ronaldo', 'Messi', 'Giovanni', 'Giuseppe', 'Cardoso', 'Mónica']
 nomes_escolhidos = set()
 nifs_escolhidos = set()
 medicos = []
 
-def gera_nome(proprios, sobrenomes):
-    p = random.choice(proprios)
-    s = random.choice(sobrenomes)
-    return p + " " + s
+def gera_nome():
+    return fake.name()
 
-def gera_nome_unico(proprios, sobrenomes, escolhidos):
-    n = gera_nome(proprios, sobrenomes)
+def gera_nome_unico(escolhidos):
+    n = gera_nome()
     while n in escolhidos:
-        n = gera_nome(proprios, sobrenomes)
+        n = gera_nome()
     escolhidos.add(n)
     return n
 
-def gera_nif(escolhidos):
-    nif = random.randint(100000000, 999999999)
+def gera_nif():
+    return random.randint(100000000, 999999999)
+
+def gera_nif_unico(escolhidos):
+    nif = gera_nif()
     while nif in escolhidos:
-        nif = random.randint(100000000, 999999999)
+        nif = gera_nif()
     escolhidos.add(nif)
     return nif
 
-def gera_ssn(escolhidos):
-    ssn = random.randint(10000000000, 99999999999)
+def gera_ssn():
+    return random.randint(10000000000, 99999999999)
+
+def gera_ssn_unico(escolhidos):
+    ssn = gera_ssn()
     while ssn in escolhidos:
-        ssn = random.randint(10000000000, 99999999999)
+        ssn = gera_ssn()
     escolhidos.add(ssn)
     return ssn
 
 def gera_data():
-    data = str(random.randint(1974, 2024)) + "-"
-    data += str(random.randint(1, 12)) + "-"
-    data += str(random.randint(1, 28))
-    return data
+    return fake.date_between(datetime.date(1974, 1, 1), datetime.date(2004, 12, 31))
 
 def gera_morada():
-    morada = random.choice(inicial_ruas)
-    morada += " " + random.choice(nomes_de_ruas)
-    morada += ", " + str(random.randint(0, 10000))
-    return morada
+    return fake.address().replace("\n", " ")
 
 def gera_telefone():
     return random.randint(900000000, 999999999)
 
 def gera_medicos(count: int, especialidades):
     for _ in range(count):
-        medicos.append((gera_nif(nifs_escolhidos), gera_nome_unico(nomes_proprios, sobrenomes, nomes_escolhidos), gera_telefone(), gera_morada(), random.choice(especialidades)))
+        medicos.append((gera_nif_unico(nifs_escolhidos), gera_nome_unico(nomes_escolhidos), gera_telefone(), gera_morada(), random.choice(especialidades)))
 
 gera_medicos(20, ['clínica geral'])
 gera_medicos(40, especialidades)
 
-#print_table(medico_out, medicos)
+print_table(medico_out, medicos)
+
+nif_pool_clinica = [[[] for _ in range(7)] for _ in range(5)]
+trabalha = []
+
+for clinic in range(5):
+    med_at = clinic * 12;
+    for dow in range(7):
+        for docs in range(12):
+            trabalha.append((medicos[med_at][0], clinicas[clinic][0], dow))
+            nif_pool_clinica[clinic][dow].append(medicos[med_at][0])
+            med_at = (med_at + 1) % 60
+
+print_table(trabalha_out, trabalha)
 
 pacientes = []
 ssn_escolhidos = set()
 nifs_escolhidos_pac = set()
+cons_pacientes = dict()
 
 def gera_pacientes(count: int):
     for _ in range(count):
-        pacientes.append((gera_ssn(ssn_escolhidos), gera_nif(nifs_escolhidos_pac), gera_nome(nomes_proprios, sobrenomes), gera_telefone(), gera_morada(), gera_data()))
+        pacientes.append((gera_ssn_unico(ssn_escolhidos), gera_nif_unico(nifs_escolhidos_pac), gera_nome(), gera_telefone(), gera_morada(), gera_data()))
 
 gera_pacientes(5000)
 
 print_table(paciente_out, pacientes)
+
+def gera_data_consulta():
+    dia = fake.date_between(datetime.date(2023, 1, 1), datetime.date(2023, 12, 31))
+    horas = random.choice([str(random.randint(8, 13)), str(random.randint(14, 19))])
+    if (int(horas) < 10):
+        horas = '0' + horas
+    mins = [':00:00', ':30:00']
+    return str(dia) + " " + horas + random.choice(mins)
+
+consultas = []
+con_id = 0

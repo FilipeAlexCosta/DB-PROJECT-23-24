@@ -148,13 +148,39 @@ gera_pacientes(5000)
 
 print_table(paciente_out, pacientes)
 
-def gera_data_consulta():
-    dia = fake.date_between(datetime.date(2023, 1, 1), datetime.date(2023, 12, 31))
+def gera_hora_consulta():
     horas = random.choice([str(random.randint(8, 13)), str(random.randint(14, 19))])
     if (int(horas) < 10):
         horas = '0' + horas
     mins = [':00:00', ':30:00']
-    return str(dia) + " " + horas + random.choice(mins)
+    return horas + random.choice(mins)
+
+def gera_codigo_sns(escolhidos):
+    codigo = random.randint(100000000000, 999999999999)
+    while codigo in escolhidos:
+        codigo = random.randint(100000000000, 999999999999)
+    return codigo
 
 consultas = []
-con_id = 0
+codigos_sns = set()
+
+start_date = datetime.date(2023, 1, 1)
+end_date = datetime.date(2023, 12, 31)
+current_date = start_date
+paciente = 0
+while current_date <= end_date:
+    for clinic in range(len(clinicas)):
+        for nif in nif_pool_clinica[clinic][current_date.weekday()]:
+            if pacientes[paciente][0] == nif:
+                print("Há um médico com autoconsulta")
+            hora1 = gera_hora_consulta()
+            consultas.append((pacientes[paciente][0], nif, clinicas[clinic][0], current_date, hora1, gera_codigo_sns(codigos_sns)))
+            paciente = (paciente + 1) % 5000
+            hora2 = gera_hora_consulta()
+            while hora1 == hora2:
+                hora2 = gera_hora_consulta()
+            consultas.append((pacientes[paciente][0], nif, clinicas[clinic][0], current_date, hora2, gera_codigo_sns(codigos_sns)))
+            paciente = (paciente + 1) % 5000
+    current_date += datetime.timedelta(days=1)
+
+print_table(consulta_out, consultas)

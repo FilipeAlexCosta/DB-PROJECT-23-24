@@ -11,20 +11,20 @@ LIMIT 3;
 """
 
 SELECT
-    m.nif AS nif, d.data AS data, d.hora AS hora
+    m.nome, d.data AS data, d.hora AS hora
 FROM
     medico m INNER JOIN (
         SELECT t.nif, d.data, d.hora
         FROM trabalha t INNER JOIN datas d
         ON(EXTRACT(dow FROM d.data) = t.dia_da_semana)
         LEFT OUTER JOIN consulta c ON(t.nif = c.nif AND d.data = c.data AND d.hora = c.hora)
-        WHERE t.nif = m.nif AND c.id IS NULL
+        WHERE t.nome = %(nome)s AND t.nif = m.nif AND c.id IS NULL
         ORDER BY d.data, d.hora
         LIMIT 3
     ) ON(m.nif = t.nif)
 WHERE
     m.especialidade = %(especialidade)s
-ORDER BY m.nif, d.data, d.hora;
+ORDER BY m.nome, d.data, d.hora;
 
 SELECT mt.nif, d.data
 FROM medico m INNER JOIN (SELECT nif, dia_da_semana FROM clinica

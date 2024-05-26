@@ -20,17 +20,18 @@ WHERE intervalo >= ALL (
 -- paciente (qualquer que ele seja) pelo menos uma vez por mês durante pelo menos doze meses
 -- consecutivos, em consultas de cardiologia.
 SELECT DISTINCT
-    chave
+    chave AS nome_medicamento
 FROM
     historial_paciente h1 INNER JOIN historial_paciente h2 ON(h1.ssn = h2.ssn AND
     h1.tipo = h2.tipo AND h1.chave = h2.chave AND h1.especialidade = h2.especialidade AND
-    ABS(EXTRACT(MONTH FROM DATE(h1.ano|| '-' || h1.mes || '-01') - DATE(h2.ano|| '-' || h2.mes || '-01'))) = 1)
+    EXTRACT(MONTH FROM (DATE(h2.ano|| '-' || h2.mes || '-01') - DATE(h1.ano|| '-' || h1.mes || '-01'))) <= 11 AND
+    EXTRACT(MONTH FROM (DATE(h2.ano|| '-' || h2.mes || '-01') - DATE(h1.ano|| '-' || h1.mes || '-01'))) >= 0)
 WHERE
     h1.tipo = 'receita' AND h1.especialidade = 'cardiologia'
 GROUP BY
     h1.ssn, h1.chave
 HAVING
-    COUNT(DISTICT DATE(h1.ano|| '-' || h1.mes || '-01')) >= 12
+    COUNT(h1.data) = 12
 ;
 
 -- 3
@@ -46,7 +47,7 @@ WHERE
 GROUP BY GROUPING SETS
     ((localidade), (localidade, clinica),
      (mes), (mes, dia_do_mes),
-     (especialidade), (especialidade, m.nome))
+     (especialidade), (especialidade, nome_medico))
 ; -- FALTA ACTUALLY EXTRAIR A LOCALIDADE A PARTIR DA MORADA!!!!!!!!!!!!!!!!!!!!
 
 -- 4

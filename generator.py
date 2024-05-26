@@ -104,7 +104,7 @@ nif_pool_clinica = [[[] for _ in range(7)] for _ in range(5)]
 trabalha = []
 
 for clinic in range(5):
-    med_at = clinic * 12;
+    med_at = clinic * 12
     for dow in range(7):
         for docs in range(12):
             trabalha.append((medicos[med_at][0], clinicas[clinic][0], dow))
@@ -151,7 +151,7 @@ paciente = 0
 id = 0
 while current_date <= end_date:
     for clinic in range(len(clinicas)):
-        for nif in nif_pool_clinica[clinic][current_date.weekday()]:
+        for nif in nif_pool_clinica[clinic][(current_date.weekday() + 1) % 7]:
             if pacientes[paciente][0] == nif:
                 print("ERRO: Há um médico com autoconsulta")
             hora1 = gera_hora_consulta()
@@ -276,6 +276,7 @@ def gera_medicamento(escolhidos):
     medicamento = random.choice(medicamentos_disp)
     while medicamento in escolhidos:
         medicamento = random.choice(medicamentos_disp)
+    escolhidos.add(medicamento)
     return medicamento
 
 def gera_receita(codigo_sns):
@@ -289,6 +290,7 @@ for consulta in consultas:
     if not (1 == random.randint(1, 5)):
         rec_geradas += 1
         gera_receita(consulta[6])
+        
 
 print(f"Aproximadamente {rec_geradas / (float) (len(consultas)) * 100}% das consultas têm receita (target: 80%)")
 
@@ -389,7 +391,7 @@ def gera_observacao(id):
     metricas = random.randint(0, 3)
     escolhidos = set()
     for _ in range(sintomas):
-        observacoes.append((id, gera_sintoma(escolhidos), 'NULL'))
+        observacoes.append((id, gera_sintoma(escolhidos), ''))
     for _ in range(metricas):
         param = gera_parametro(escolhidos)
         observacoes.append((id, param[0], param[1]))

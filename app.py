@@ -113,6 +113,14 @@ def lista_medicos(clinica, especialidade):
 
     return jsonify(medicos), 200
 
+def organiza_erro(error):
+    erro = ""
+    if error.diag.message_primary is not None:
+        erro += str(error.diag.message_primary)
+    if error.diag.message_detail is not None:
+        erro += str(error.diag.message_detail)
+    return erro
+
 @app.route("/a/<clinica>/registar", methods=("POST",))
 def regista_consulta(clinica):  
     """Registra uma marcação de consulta na <clinica> na base
@@ -136,12 +144,6 @@ def regista_consulta(clinica):
         return jsonify({"message": erro, "status": "error"}), 400
     with psycopg.connect(conninfo=DATABASE_URL) as conn:
         with conn.cursor(row_factory=namedtuple_row) as cur:
-            cur.execute("""
-                        SELECT * FROM clinica where nome = %(nome)s;
-                        """,
-                        {"nome": clinica})
-            if cur.rowcount == 0:
-                return jsonify({"message": "Clinica não encontrada", "status": "error"}), 404
             try:
                 cur.execute(
                     """
@@ -165,11 +167,19 @@ def regista_consulta(clinica):
                 SELECT * FROM NOW() AS aux WHERE TO_TIMESTAMP(%(tempo)s, 'YYYY-MM-DD HH24:MI:SS') > aux::timestamp;
                 """,
                 {"tempo": data + " " + hora}
-            ).fetchall()
+            )
             if cur.rowcount == 0:
                 return jsonify({"message": "o tempo tem de ser posterior ao atual", "status": "error"}), 400
+            cur.execute(
+                """
+                SELECT * FROM clinica where nome = %(nome)s;
+                """,
+                {"nome": clinica}
+            )
+            if cur.rowcount == 0:
+                return jsonify({"message": "Clinica não encontrada", "status": "error"}), 404
             try:
-                res = cur.execute(
+                cur.execute(
                     """
                     INSERT INTO consulta (ssn, nif, nome, data, hora)
                         VALUES (%(ssn)s, %(nif)s, %(nome)s, %(data)s, %(hora)s);
@@ -177,7 +187,7 @@ def regista_consulta(clinica):
                     {"ssn": paciente, "nif": medico, "nome": clinica, "data": data, "hora": hora},
                 )
             except Exception as e:
-                return jsonify({"message": str(e), "status": "error"}), 400
+                return jsonify({"message": organiza_erro(e), "status": "error"}), 400
 
     return "", 204
 
@@ -204,12 +214,6 @@ def cancela_consulta(clinica):
         return jsonify({"message": erro, "status": "error"}), 400
     with psycopg.connect(conninfo=DATABASE_URL) as conn:
         with conn.cursor(row_factory=namedtuple_row) as cur:
-            cur.execute("""
-                        SELECT * FROM clinica where nome = %(nome)s;
-                        """,
-                        {"nome": clinica}).fetchall()
-            if cur.rowcount == 0:
-                return jsonify({"message": "Clinica não encontrada", "status": "error"}), 404
             try:
                 cur.execute(
                     """
@@ -233,20 +237,28 @@ def cancela_consulta(clinica):
                 SELECT * FROM NOW() AS aux WHERE TO_TIMESTAMP(%(tempo)s, 'YYYY-MM-DD HH24:MI:SS') > aux::timestamp;
                 """,
                 {"tempo": data + " " + hora}
-            ).fetchall()
+            )
             if cur.rowcount == 0:
                 return jsonify({"message": "o tempo tem de ser posterior ao atual", "status": "error"}), 400
+            cur.execute(
+                """
+                SELECT * FROM clinica where nome = %(nome)s
+                """,
+                {"nome": clinica}
+            )
+            if cur.rowcount == 0:
+                return jsonify({"message": "Clinica não encontrada", "status": "error"}), 404
             try: 
                 cur.execute(
                     """
                     DELETE FROM 
-                    consulta 
+                    consulta
                     WHERE ssn = %(ssn)s AND nif = %(nif)s AND nome = %(nome)s AND data = %(data)s AND hora = %(hora)s;
                     """,
                     {"ssn": paciente, "nif": medico, "nome": clinica, "data": data, "hora": hora},
                 )
             except Exception as e:
-                return jsonify({"message": str(e), "status": "error"}), 400
+                return jsonify({"message": organiza_erro(e), "status": "error"}), 400
             
             if cur.rowcount == 0:
                 return jsonify({"message": "Consulta não encontrada", "status": "error"}), 404

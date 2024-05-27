@@ -35,6 +35,13 @@ app = Flask(__name__)
 app.config.from_prefixed_env()
 log = app.logger
 
+def is_integer(any) -> bool:
+    try:
+        int(any)
+        return True
+    except ValueError:
+        return False
+
 @app.route("/", methods=("GET",))
 def lista_clinicas():
     """Lista todas as clínicas (nome e morada)."""
@@ -48,7 +55,7 @@ def lista_clinicas():
             ).fetchall()
             log.debug(f"Found {cur.rowcount} rows.")
 
-    return jsonify(clinicas)
+    return jsonify(clinicas), 200
 
 @app.route("/c/<clinica>/", methods=("GET",))
 def lista_especialidades(clinica):
@@ -65,7 +72,7 @@ def lista_especialidades(clinica):
             ).fetchall()
             log.debug(f"Found {cur.rowcount} rows.")
 
-    return jsonify(especialidades)
+    return jsonify(especialidades), 200
 
 @app.route("/c/<clinica>/<especialidade>/", methods=("GET",))
 def lista_medicos(clinica, especialidade):
@@ -89,7 +96,7 @@ def lista_medicos(clinica, especialidade):
                     SELECT t.nome_medico, d.data, d.hora
                     FROM (SELECT t.nif, t.dia_da_semana, m.nome AS nome_medico
                     FROM trabalha t INNER JOIN medico m USING(nif)
-                    WHERE m.especialidade = 'cardiologia' AND t.nome = 'Clinica B') AS t
+                    WHERE m.especialidade = %(especialidade)s AND t.nome = %(nome)s) AS t
                     INNER JOIN datas d ON(EXTRACT(dow FROM d.data) = t.dia_da_semana)
                     LEFT OUTER JOIN consulta c ON(t.nif = c.nif AND d.data = c.data AND d.hora = c.hora)
                     WHERE c.id IS NULL
@@ -102,10 +109,9 @@ def lista_medicos(clinica, especialidade):
                 """,
                 {"nome": clinica, "especialidade": especialidade},
             ).fetchall()
-            print(medicos)
             log.debug(f"Found {cur.rowcount} rows.")
 
-    return jsonify(medicos)
+    return jsonify(medicos), 200
 
 @app.route("/a/<clinica>/registar", methods=("POST",))
 def regista_consulta(clinica):  
@@ -118,26 +124,60 @@ def regista_consulta(clinica):
     data = request.args.get("data")
     hora = request.args.get("hora")
     erro = None
-    if paciente == None:
-        erro = "Especifique um paciente."
-    elif medico == None:
-        erro = "Especifique um medico."
-    elif data == None:
+    if paciente == None or not is_integer(paciente) or len(paciente) != 11:
+        erro = f"o ssn '{paciente}' do paciente é inválido"
+    elif medico == None or not is_integer(medico) or len(medico) != 9:
+        erro = f"o nif '{medico}' do medico é inválido"
+    elif data == None or data == '':
         erro = "Especifique uma data."
-    elif hora == None:
+    elif hora == None or hora == '':
         erro = "Especifique uma hora."
     if erro is not None:
-        return erro, 400
-    else:
-        with psycopg.connect(conninfo=DATABASE_URL) as conn:
-            with conn.cursor(row_factory=namedtuple_row) as cur:
-                regista_consulta = cur.execute(
+        return jsonify({"message": erro, "status": "error"}), 400
+    with psycopg.connect(conninfo=DATABASE_URL) as conn:
+        with conn.cursor(row_factory=namedtuple_row) as cur:
+            cur.execute("""
+                        SELECT * FROM clinica where nome = %(nome)s;
+                        """,
+                        {"nome": clinica})
+            if cur.rowcount == 0:
+                return jsonify({"message": "Clinica não encontrada", "status": "error"}), 404
+            try:
+                cur.execute(
+                    """
+                    SELECT TO_DATE(%(data)s, 'YYYY-MM-DD');
+                    """,
+                    {"data": data}
+                )
+            except Exception:
+                return jsonify({"message": f"a data '{data}' é inválida (tem de ter formato YYYY-MM-DD)", "status": "error"}), 400
+            try:
+                cur.execute(
+                    """
+                    SELECT TO_TIMESTAMP(%(hora)s, 'HH24:MM:SS')::time;
+                    """,
+                    {"hora": hora}
+                )
+            except Exception:
+                return jsonify({"message": f"a hora '{hora}' é inválida (tem de ter formato HH:MM:SS)", "status": "error"}), 400
+            cur.execute(
+                """
+                SELECT * FROM NOW() AS aux WHERE TO_TIMESTAMP(%(tempo)s, 'YYYY-MM-DD HH24:MI:SS') > aux::timestamp;
+                """,
+                {"tempo": data + " " + hora}
+            ).fetchall()
+            if cur.rowcount == 0:
+                return jsonify({"message": "o tempo tem de ser posterior ao atual", "status": "error"}), 400
+            try:
+                res = cur.execute(
                     """
                     INSERT INTO consulta (ssn, nif, nome, data, hora)
                         VALUES (%(ssn)s, %(nif)s, %(nome)s, %(data)s, %(hora)s);
                     """,
                     {"ssn": paciente, "nif": medico, "nome": clinica, "data": data, "hora": hora},
                 )
+            except Exception as e:
+                return jsonify({"message": str(e), "status": "error"}), 400
 
     return "", 204
 
@@ -152,19 +192,51 @@ def cancela_consulta(clinica):
     data = request.args.get("data")
     hora = request.args.get("hora")
     erro = None
-    if paciente == None:
-        erro = "Especifique um paciente."
-    elif medico == None:
-        erro = "Especifique um medico."
-    elif data == None:
+    if paciente == None or not is_integer(paciente) or len(paciente) != 11:
+        erro = f"o ssn '{paciente}' do paciente é inválido"
+    elif medico == None or not is_integer(medico) or len(medico) != 9:
+        erro = f"o nif '{medico}' do medico é inválido"
+    elif data == None or data == '':
         erro = "Especifique uma data."
-    elif hora == None:
+    elif hora == None or hora == '':
         erro = "Especifique uma hora."
     if erro is not None:
-        return erro, 400
-    else:
-        with psycopg.connect(conninfo=DATABASE_URL) as conn:
-            with conn.cursor(row_factory=namedtuple_row) as cur:
+        return jsonify({"message": erro, "status": "error"}), 400
+    with psycopg.connect(conninfo=DATABASE_URL) as conn:
+        with conn.cursor(row_factory=namedtuple_row) as cur:
+            cur.execute("""
+                        SELECT * FROM clinica where nome = %(nome)s;
+                        """,
+                        {"nome": clinica}).fetchall()
+            if cur.rowcount == 0:
+                return jsonify({"message": "Clinica não encontrada", "status": "error"}), 404
+            try:
+                cur.execute(
+                    """
+                    SELECT TO_DATE(%(data)s, 'YYYY-MM-DD');
+                    """,
+                    {"data": data}
+                )
+            except Exception:
+                return jsonify({"message": f"a data '{data}' é inválida (tem de ter formato YYYY-MM-DD)", "status": "error"}), 400
+            try:
+                cur.execute(
+                    """
+                    SELECT TO_TIMESTAMP(%(hora)s, 'HH24:MI:SS')::time;
+                    """,
+                    {"hora": hora}
+                )
+            except Exception as e:
+                return jsonify({"message": f"a hora '{hora}' é inválida (tem de ter formato HH:MM:SS)", "status": "error"}), 400
+            cur.execute(
+                """
+                SELECT * FROM NOW() AS aux WHERE TO_TIMESTAMP(%(tempo)s, 'YYYY-MM-DD HH24:MI:SS') > aux::timestamp;
+                """,
+                {"tempo": data + " " + hora}
+            ).fetchall()
+            if cur.rowcount == 0:
+                return jsonify({"message": "o tempo tem de ser posterior ao atual", "status": "error"}), 400
+            try: 
                 cur.execute(
                     """
                     DELETE FROM 
@@ -173,30 +245,18 @@ def cancela_consulta(clinica):
                     """,
                     {"ssn": paciente, "nif": medico, "nome": clinica, "data": data, "hora": hora},
                 )
+            except Exception as e:
+                return jsonify({"message": str(e), "status": "error"}), 400
+            
+            if cur.rowcount == 0:
+                return jsonify({"message": "Consulta não encontrada", "status": "error"}), 404
 
     return "", 204
 
 @app.route("/ping", methods=("GET",))
 def ping():
     log.debug("ping!")
-    return jsonify({"message": "pong!", "status": "success"})
-
-@app.route("/load", methods=("POST",))
-def loadDB():
-    with psycopg.connect(conninfo=DATABASE_URL) as conn:
-        with conn.cursor(row_factory=namedtuple_row) as cur:
-            f = open("data/LoadDB.sql")
-            cur.execute(f.read())
-            f.close()
-            f = open("data/IntegrityConstraints.sql")
-            cur.execute(f.read())
-            f.close()
-            f = open("data/Populate.sql")
-            cur.execute(f.read())
-            f.close()
-            f = open("data/MaterializedView.sql")
-            cur.execute(f.read())
-            f.close()
+    return jsonify({"message": "pong!", "status": "success"}), 200
 
 if __name__ == "__main__":
     app.run()

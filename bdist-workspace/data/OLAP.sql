@@ -3,31 +3,35 @@
 SELECT DISTINCT
     res.ssn
 FROM
-    (SELECT h.ssn, (MAX(h.data + c.hora) - MIN(h.data + c.hora)) AS intervalo
+    (SELECT h.ssn, (MAX(h.data) - MIN(h.data)) AS intervalo
     FROM historial_paciente h INNER JOIN consulta c USING(id)
     WHERE h.especialidade = 'ortopedia' AND h.tipo = 'observacao' AND h.valor IS NULL
-    GROUP BY h.ssn, h.chave HAVING (MAX(h.data + c.hora) - MIN(h.data + c.hora)) > INTERVAL '0') AS res
+    GROUP BY h.ssn, h.chave HAVING (MAX(h.data) - MIN(h.data)) > INTERVAL '0') AS res
 WHERE res.intervalo >= ALL (
-    SELECT (MAX(h.data + c.hora) - MIN(h.data + c.hora))
+    SELECT (MAX(h.data) - MIN(h.data))
     FROM historial_paciente h INNER JOIN consulta c USING(id)
     WHERE h.especialidade = 'ortopedia' AND h.tipo = 'observacao' AND h.valor IS NULL
-    GROUP BY h.ssn, h.chave HAVING (MAX(h.data + c.hora) - MIN(h.data + c.hora)) > INTERVAL '0'
+    GROUP BY h.ssn, h.chave HAVING (MAX(h.data) - MIN(h.data)) > INTERVAL '0'
 );
+
+Determinar que medicamentos estão a ser usados para tratar doenças crónicas do foro
+cardiológico. Considera-se que qualificam quaisquer medicamentos receitados ao mesmo
+paciente (qualquer que ele seja) pelo menos uma vez por mês durante os últimos doze meses, em consultas de cardiologia
 
 %%sql
 -- SELECT ...
 SELECT DISTINCT
-    h1.chave AS nome_medicamento
+    chave AS nome_medicamento
 FROM
-    historial_paciente h1 INNER JOIN historial_paciente h2 ON(h1.ssn = h2.ssn AND
-    h1.tipo = h2.tipo AND h1.chave = h2.chave AND h1.especialidade = h2.especialidade AND
-    ((12 * (h2.ano - h1.ano) + (h2.mes - h1.mes)) BETWEEN 0 AND 11))
+    historial_paciente
 WHERE
     h1.tipo = 'receita' AND h1.especialidade = 'cardiologia'
+    AND (12 * (EXTRACT(YEAR FROM CURRENT_DATE()) - ano) + 
+      (EXTRACT(MONTH FROM CURRENT_DATE()) - mes)) BETWEEN 0 AND 11
 GROUP BY
-    h1.ssn, h1.chave
+    ssn, chave
 HAVING
-    COUNT(h1.data) = 12
+    COUNT(data) >= 12
 ;
 
 %%sql

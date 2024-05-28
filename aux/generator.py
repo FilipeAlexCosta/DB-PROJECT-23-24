@@ -29,11 +29,11 @@ def print_table(path, table):
         for row in table:
             print_row(f, row)
 
-clinicas = [("Clinica A", 213456789, "Rua Vasco da Gama, 1885-007 Moscavide"),
-            ("Clinica B", 214567890, "Rua Almirante Gago Coutinho, 1885-003 Moscavide"),
-            ("Clinica C", 215678901, "Rua do Bom Sucesso, 2695-109 Bobadela"),
-            ("Clinica D", 216789012, "Praceta Miguel Torga, 2695-006 Bobadela"),
-            ("Clinica E", 217890123, "Rua Rainha Dona Amélia, 2675-287 Odivelas")]
+clinicas = [("Clínica A", 213456789, "Rua Vasco da Gama, 1885-007 Moscavide"),
+            ("Clínica B", 214567890, "Rua Almirante Gago Coutinho, 1885-003 Moscavide"),
+            ("Clínica C", 215678901, "Rua do Bom Sucesso, 2695-109 Bobadela"),
+            ("Clínica D", 216789012, "Praceta Miguel Torga, 2695-006 Bobadela"),
+            ("Clínica E", 217890123, "Rua Rainha Dona Amélia, 2675-287 Odivelas")]
 
 print_table(clinica_out, clinicas)
 
@@ -282,15 +282,19 @@ def gera_receita(codigo_sns):
 
 
 rec_geradas = 0
-for consulta in consultas:
+rec_pos = 0
+for consulta in range(len(consultas)):
+    if consultas[consulta][3] >= datetime.date.today():
+        break
+    rec_pos += 1
     if not (1 == random.randint(1, 5)):
         rec_geradas += 1
-        consulta[5] = gera_codigo_sns(codigos_sns)
-        gera_receita(consulta[5])
+        consultas[consulta][5] = gera_codigo_sns(codigos_sns)
+        gera_receita(consultas[consulta][5])
         
 print_table(consulta_out, consultas)
 
-print(f"Aproximadamente {rec_geradas / (float) (len(consultas)) * 100}% das consultas têm receita (target: 80%)")
+print(f"Aproximadamente {rec_geradas / (float) (rec_pos) * 100}% das consultas têm receita (target: 80%)")
 
 print_table(receita_out, receitas)
 
@@ -395,6 +399,8 @@ def gera_observacao(id_consulta):
         observacoes.append((id_consulta, param[0], param[1]))
 
 for consulta in range(len(consultas)):
+    if consultas[consulta][3] >= datetime.date.today():
+        break
     gera_observacao(consulta + 1)
 
 print_table(observacao_out, observacoes)

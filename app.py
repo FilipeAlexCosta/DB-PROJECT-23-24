@@ -79,37 +79,37 @@ def lista_medicos(clinica, especialidade):
     """Lista todos os médicos (nome) da <especialidade> que
     trabalham na <clínica> e os primeiros três horários
     disponíveis para consulta de cada um deles (data e hora)."""
+    medicos = []
     with psycopg.connect(conninfo=DATABASE_URL) as conn:
         with conn.cursor(row_factory=namedtuple_row) as cur:
-            medicos = cur.execute(
-                """
-                WITH datas AS (
-                    SELECT
-                        x::date AS data, x::time as hora
-                    FROM
-                        generate_series(timestamp '2024-01-01', timestamp '2024-12-31', interval '30 min') AS x
-                    WHERE
-                        ((x::time BETWEEN '08:00:00' AND '12:30:00') OR
-                        (x::time BETWEEN '14:00:00' AND '18:30:00')) AND
-                        x::timestamp > NOW()::timestamp
-                ), possible AS (
-                    SELECT t.nome_medico, d.data, d.hora
-                    FROM (SELECT t.nif, t.dia_da_semana, m.nome AS nome_medico
-                    FROM trabalha t INNER JOIN medico m USING(nif)
-                    WHERE m.especialidade = %(especialidade)s AND t.nome = %(nome)s) AS t
-                    INNER JOIN datas d ON(EXTRACT(dow FROM d.data) = t.dia_da_semana)
-                    LEFT OUTER JOIN consulta c ON(t.nif = c.nif AND d.data = c.data AND d.hora = c.hora)
-                    WHERE c.id IS NULL
+            with conn.transaction():
+                cur.execute(
+                    """
+                    DELETE FROM datas WHERE (data + hora) <= NOW();
+                    """
                 )
-                SELECT p1.nome_medico, (p1.data + p1.hora) AS data
-                FROM possible p1 INNER JOIN possible p2 ON (p1.nome_medico = p2.nome_medico AND (p1.data + p1.hora) >= (p2.data + p2.hora))
-                GROUP BY p1.nome_medico, p1.data, p1.hora
-                HAVING COUNT(*) <= 3
-                ORDER BY p1.data, p1.nome_medico, p1.hora;
-                """,
-                {"nome": clinica, "especialidade": especialidade},
-            ).fetchall()
-            log.debug(f"Found {cur.rowcount} rows.")
+                res = cur.execute(
+                    """
+                    SELECT m.nome, d.data + d.hora
+                    FROM trabalha t INNER JOIN medico m USING(nif)
+                    INNER JOIN datas d ON(EXTRACT(DOW FROM d.data) = t.dia_da_semana)
+                    LEFT OUTER JOIN consulta c ON(t.nif = c.nif and d.data = c.data AND d.hora = c.hora)
+                    WHERE c.id IS NULL AND t.nome = %(clinica)s AND m.especialidade = %(especialidade)s
+                    ORDER BY m.nome, d.data, d.hora;
+                    """,
+                    {"clinica": clinica, "especialidade": especialidade}
+                ).fetchall()
+                ultimo_nif = None
+                num_linhas_nif = 0
+                for linha in res:
+                    if ultimo_nif != linha[0]:
+                        ultimo_nif = linha[0]
+                        num_linhas_nif = 1
+                        medicos.append(linha)
+                        continue
+                    if num_linhas_nif < 3:
+                        num_linhas_nif += 1
+                        medicos.append(linha)
 
     return jsonify(medicos), 200
 
@@ -121,12 +121,15 @@ def organiza_erro(error):
         erro += str(error.diag.message_detail)
     return erro
 
-@app.route("/a/<clinica>/registar", methods=("POST",))
-def regista_consulta(clinica):  
-    """Registra uma marcação de consulta na <clinica> na base
-    de dados (populando a respectiva tabela). Recebe como
-    argumentos um paciente, um médico, e uma data e hora
-    (posteriores ao momento de agendamento)."""
+def verifica_tempo_posterior(cursor, data, hora):
+    cursor.execute(
+        """
+        SELECT * FROM NOW() AS aux WHERE TO_TIMESTAMP(%(tempo)s, 'YYYY-MM-DD HH24:MI:SS') > aux::timestamp;
+        """,
+        {"tempo": data + " " + hora}
+    )
+
+def verifica_args_regista_cancela(paciente, medico, data, hora):
     paciente = request.args.get("paciente")
     medico = request.args.get("medico")
     data = request.args.get("data")
@@ -140,44 +143,31 @@ def regista_consulta(clinica):
         erro = "Especifique uma data."
     elif hora == None or hora == '':
         erro = "Especifique uma hora."
+    return erro
+
+@app.route("/a/<clinica>/registar", methods=("POST",))
+def regista_consulta(clinica):  
+    """Registra uma marcação de consulta na <clinica> na base
+    de dados (populando a respectiva tabela). Recebe como
+    argumentos um paciente, um médico, e uma data e hora
+    (posteriores ao momento de agendamento)."""
+    paciente = request.args.get("paciente")
+    medico = request.args.get("medico")
+    data = request.args.get("data")
+    hora = request.args.get("hora")
+    erro = verifica_args_regista_cancela(paciente, medico, data, hora)
     if erro is not None:
         return jsonify({"message": erro, "status": "error"}), 400
     with psycopg.connect(conninfo=DATABASE_URL) as conn:
         with conn.cursor(row_factory=namedtuple_row) as cur:
             try:
-                cur.execute(
-                    """
-                    SELECT TO_DATE(%(data)s, 'YYYY-MM-DD');
-                    """,
-                    {"data": data}
-                )
-            except Exception:
-                return jsonify({"message": f"a data '{data}' é inválida (tem de ter formato YYYY-MM-DD)", "status": "error"}), 400
-            try:
-                cur.execute(
-                    """
-                    SELECT TO_TIMESTAMP(%(hora)s, 'HH24:MM:SS')::time;
-                    """,
-                    {"hora": hora}
-                )
-            except Exception:
-                return jsonify({"message": f"a hora '{hora}' é inválida (tem de ter formato HH:MM:SS)", "status": "error"}), 400
-            cur.execute(
-                """
-                SELECT * FROM NOW() AS aux WHERE TO_TIMESTAMP(%(tempo)s, 'YYYY-MM-DD HH24:MI:SS') > aux::timestamp;
-                """,
-                {"tempo": data + " " + hora}
-            )
+                verifica_tempo_posterior(cur, data, hora)
+            except Exception as e:
+                return jsonify({"message": f"o horário '{str(data)} {str(hora)}' é inválido (tem de ter formato YYYY-MM-DD HH:MM:SS)",
+                                "status": "error"}), 400
             if cur.rowcount == 0:
-                return jsonify({"message": "o tempo tem de ser posterior ao atual", "status": "error"}), 400
-            cur.execute(
-                """
-                SELECT * FROM clinica where nome = %(nome)s;
-                """,
-                {"nome": clinica}
-            )
-            if cur.rowcount == 0:
-                return jsonify({"message": "Clinica não encontrada", "status": "error"}), 404
+                return jsonify({"message": f"o horário tem de ser posterior ao atual",
+                                "status": "error"}), 400
             try:
                 cur.execute(
                     """
@@ -201,53 +191,19 @@ def cancela_consulta(clinica):
     medico = request.args.get("medico")
     data = request.args.get("data")
     hora = request.args.get("hora")
-    erro = None
-    if paciente == None or not is_integer(paciente) or len(paciente) != 11:
-        erro = f"o ssn '{paciente}' do paciente é inválido"
-    elif medico == None or not is_integer(medico) or len(medico) != 9:
-        erro = f"o nif '{medico}' do medico é inválido"
-    elif data == None or data == '':
-        erro = "Especifique uma data."
-    elif hora == None or hora == '':
-        erro = "Especifique uma hora."
+    erro = verifica_args_regista_cancela(paciente, medico, data, hora)
     if erro is not None:
         return jsonify({"message": erro, "status": "error"}), 400
     with psycopg.connect(conninfo=DATABASE_URL) as conn:
         with conn.cursor(row_factory=namedtuple_row) as cur:
             try:
-                cur.execute(
-                    """
-                    SELECT TO_DATE(%(data)s, 'YYYY-MM-DD');
-                    """,
-                    {"data": data}
-                )
-            except Exception:
-                return jsonify({"message": f"a data '{data}' é inválida (tem de ter formato YYYY-MM-DD)", "status": "error"}), 400
-            try:
-                cur.execute(
-                    """
-                    SELECT TO_TIMESTAMP(%(hora)s, 'HH24:MI:SS')::time;
-                    """,
-                    {"hora": hora}
-                )
+                verifica_tempo_posterior(cur, data, hora)
             except Exception as e:
-                return jsonify({"message": f"a hora '{hora}' é inválida (tem de ter formato HH:MM:SS)", "status": "error"}), 400
-            cur.execute(
-                """
-                SELECT * FROM NOW() AS aux WHERE TO_TIMESTAMP(%(tempo)s, 'YYYY-MM-DD HH24:MI:SS') > aux::timestamp;
-                """,
-                {"tempo": data + " " + hora}
-            )
+                return jsonify({"message": f"o horário '{str(data)} {str(hora)}' é inválido (tem de ter formato YYYY-MM-DD HH:MM:SS)",
+                                "status": "error"}), 400
             if cur.rowcount == 0:
-                return jsonify({"message": "o tempo tem de ser posterior ao atual", "status": "error"}), 400
-            cur.execute(
-                """
-                SELECT * FROM clinica where nome = %(nome)s
-                """,
-                {"nome": clinica}
-            )
-            if cur.rowcount == 0:
-                return jsonify({"message": "Clinica não encontrada", "status": "error"}), 404
+                return jsonify({"message": f"o horário tem de ser posterior ao atual",
+                                "status": "error"}), 400
             try: 
                 cur.execute(
                     """

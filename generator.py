@@ -29,11 +29,11 @@ def print_table(path, table):
         for row in table:
             print_row(f, row)
 
-clinicas = [("Clínica A", 213456789, "Rua Vasco da Gama, 1885-007 Moscavide"),
+clinicas = [("Clinica A", 213456789, "Rua Vasco da Gama, 1885-007 Moscavide"),
             ("Clinica B", 214567890, "Rua Almirante Gago Coutinho, 1885-003 Moscavide"),
-            ("Clínica C", 215678901, "Rua do Bom Sucesso, 2695-109 Bobadela"),
-            ("Clínica D", 216789012, "Praceta Miguel Torga, 2695-006 Bobadela"),
-            ("Clínica E", 217890123, "Rua Rainha Dona Amélia, 2675-287 Odivelas")]
+            ("Clinica C", 215678901, "Rua do Bom Sucesso, 2695-109 Bobadela"),
+            ("Clinica D", 216789012, "Praceta Miguel Torga, 2695-006 Bobadela"),
+            ("Clinica E", 217890123, "Rua Rainha Dona Amélia, 2675-287 Odivelas")]
 
 print_table(clinica_out, clinicas)
 
@@ -145,28 +145,23 @@ consultas = []
 codigos_sns = set()
 
 start_date = datetime.date(2023, 1, 1)
-end_date = datetime.date(2023, 12, 31)
+end_date = datetime.date(2024, 12, 31)
 current_date = start_date
 paciente = 0
-id = 0
 while current_date <= end_date:
     for clinic in range(len(clinicas)):
         for nif in nif_pool_clinica[clinic][(current_date.weekday() + 1) % 7]:
             if pacientes[paciente][0] == nif:
                 print("ERRO: Há um médico com autoconsulta")
             hora1 = gera_hora_consulta()
-            consultas.append((id, pacientes[paciente][0], nif, clinicas[clinic][0], current_date, hora1, gera_codigo_sns(codigos_sns)))
+            consultas.append([pacientes[paciente][0], nif, clinicas[clinic][0], current_date, hora1, ''])
             paciente = (paciente + 1) % 5000
-            id += 1
             hora2 = gera_hora_consulta()
             while hora1 == hora2:
                 hora2 = gera_hora_consulta()
-            consultas.append((id, pacientes[paciente][0], nif, clinicas[clinic][0], current_date, hora2, gera_codigo_sns(codigos_sns)))
+            consultas.append([pacientes[paciente][0], nif, clinicas[clinic][0], current_date, hora2, ''])
             paciente = (paciente + 1) % 5000
-            id += 1
     current_date += datetime.timedelta(days=1)
-
-print_table(consulta_out, consultas)
 
 receitas = []
 medicamentos_disp = [
@@ -285,12 +280,15 @@ def gera_receita(codigo_sns):
     for _ in range(quant):
         receitas.append((codigo_sns, gera_medicamento(medicamentos), random.randint(1, 3)))
 
+
 rec_geradas = 0
 for consulta in consultas:
     if not (1 == random.randint(1, 5)):
         rec_geradas += 1
-        gera_receita(consulta[6])
+        consulta[5] = gera_codigo_sns(codigos_sns)
+        gera_receita(consulta[5])
         
+print_table(consulta_out, consultas)
 
 print(f"Aproximadamente {rec_geradas / (float) (len(consultas)) * 100}% das consultas têm receita (target: 80%)")
 
@@ -386,17 +384,17 @@ def gera_parametro(escolhidos):
     escolhidos.add(param)
     return (param, random.uniform(0.1, 100))
 
-def gera_observacao(id):
+def gera_observacao(id_consulta):
     sintomas = random.randint(1, 5)
     metricas = random.randint(0, 3)
     escolhidos = set()
     for _ in range(sintomas):
-        observacoes.append((id, gera_sintoma(escolhidos), ''))
+        observacoes.append((id_consulta, gera_sintoma(escolhidos), ''))
     for _ in range(metricas):
         param = gera_parametro(escolhidos)
-        observacoes.append((id, param[0], param[1]))
+        observacoes.append((id_consulta, param[0], param[1]))
 
-for consulta in consultas:
-    gera_observacao(consulta[0])
+for consulta in range(len(consultas)):
+    gera_observacao(consulta + 1)
 
 print_table(observacao_out, observacoes)

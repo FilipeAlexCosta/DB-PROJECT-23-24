@@ -8,7 +8,7 @@
 
 \copy paciente(ssn, nif, nome, telefone, morada, data_nasc) FROM 'data/paciente.txt' DELIMITER ';' CSV;
 
-\copy consulta(id, ssn, nif, nome, data, hora, codigo_sns) FROM 'data/consulta.txt' DELIMITER ';' CSV;
+\copy consulta(ssn, nif, nome, data, hora, codigo_sns) FROM 'data/consulta.txt' DELIMITER ';' CSV;
 
 \copy receita(codigo_sns, medicamento, quantidade) FROM 'data/receita.txt' DELIMITER ';' CSV;
 

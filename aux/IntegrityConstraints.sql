@@ -14,8 +14,11 @@ END;
 $$
 LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER proibe_auto_consulta BEFORE INSERT OR UPDATE ON consulta
-	FOR EACH ROW EXECUTE FUNCTION verifica_auto_consulta();
+CREATE CONSTRAINT TRIGGER proibe_auto_consulta
+    AFTER INSERT OR UPDATE ON consulta
+    FOR EACH ROW
+    EXECUTE FUNCTION verifica_auto_consulta();
+
 
 CREATE OR REPLACE FUNCTION verifica_local_trabalho() RETURNS TRIGGER AS
 $$
@@ -30,5 +33,7 @@ END;
 $$
 LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER proibe_consultas_fora_clinica BEFORE INSERT OR UPDATE ON consulta
-	FOR EACH ROW EXECUTE FUNCTION verifica_local_trabalho();
+CREATE CONSTRAINT TRIGGER proibe_consultas_fora_clinica 
+	AFTER INSERT OR UPDATE ON consulta
+	FOR EACH ROW 
+	EXECUTE FUNCTION verifica_local_trabalho();

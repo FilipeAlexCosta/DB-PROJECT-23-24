@@ -113,14 +113,6 @@ def lista_medicos(clinica, especialidade):
 
     return jsonify(medicos), 200
 
-def organiza_erro(error):
-    erro = ""
-    if error.diag.message_primary is not None:
-        erro += str(error.diag.message_primary)
-    if error.diag.message_detail is not None:
-        erro += str(error.diag.message_detail)
-    return erro
-
 def verifica_tempo_posterior(cursor, data, hora):
     cursor.execute(
         """
@@ -144,6 +136,50 @@ def verifica_args_regista_cancela(paciente, medico, data, hora):
     elif hora == None or hora == '':
         erro = "Especifique uma hora."
     return erro
+
+def paciente_existe(cursor, paciente):
+    cursor.execute(
+        """
+        SELECT * FROM paciente WHERE ssn = %(paciente)s;
+        """,
+        {"paciente": paciente}
+    )
+    if cursor.rowcount == 0:
+        raise Exception(f"o paciente '{paciente}' não existe")
+
+def medico_existe(cursor, medico):
+    cursor.execute(
+        """
+        SELECT * FROM medico WHERE nif = %(medico)s;
+        """,
+        {"medico": medico}
+    )
+    if cursor.rowcount == 0:
+        raise Exception(f"o medico '{medico}' não existe")
+
+def clinica_existe(cursor, clinica):
+    cursor.execute(
+        """
+        SELECT * FROM clinica WHERE nome = %(clinica)s;
+        """,
+        {"clinica": clinica}
+    )
+    if cursor.rowcount == 0:
+        raise Exception(f"a clinica '{clinica}' não existe")
+
+def horario_livre(cursor, paciente, medico, clinica, data, hora):
+    cursor.execute(
+        """
+        SELECT *
+        FROM consulta
+        WHERE ssn = %(paciente)s AND nif = %(medico)s AND nome = %(clinica)s
+            AND data = %(data)s AND hora = %(hora)s
+        """,
+        {"paciente": paciente, "medico": medico, "clinica": clinica,
+         "data": data, "hora": hora}
+    )
+    if cursor.rowcount != 0:
+        raise Exception(f"o horario já está ocupado")
 
 @app.route("/a/<clinica>/registar", methods=("POST",))
 def regista_consulta(clinica):  
@@ -169,15 +205,24 @@ def regista_consulta(clinica):
                 return jsonify({"message": f"o horário tem de ser posterior ao atual",
                                 "status": "error"}), 400
             try:
-                cur.execute(
-                    """
-                    INSERT INTO consulta (ssn, nif, nome, data, hora)
-                        VALUES (%(ssn)s, %(nif)s, %(nome)s, %(data)s, %(hora)s);
-                    """,
-                    {"ssn": paciente, "nif": medico, "nome": clinica, "data": data, "hora": hora},
-                )
+                with conn.transaction():
+                    clinica_existe(cur, clinica)
+                    paciente_existe(cur, paciente)
+                    medico_existe(cur, medico)
+                    horario_livre(cur, paciente, medico, clinica, data, hora)
+                    cur.execute(
+                        """
+                        INSERT INTO consulta (ssn, nif, nome, data, hora)
+                            VALUES (%(ssn)s, %(nif)s, %(nome)s, %(data)s, %(hora)s);
+                        """,
+                        {"ssn": paciente, "nif": medico, "nome": clinica, "data": data, "hora": hora},
+                    )
             except Exception as e:
-                return jsonify({"message": organiza_erro(e), "status": "error"}), 400
+                return jsonify({"message": str(e), "status": "error"}), 400
+            else:
+                if cur.rowcount == 0:
+                    return jsonify({"message": "não foi possível marcar a consulta",
+                                    "status": "error"}), 400
 
     return "", 204
 
@@ -205,19 +250,23 @@ def cancela_consulta(clinica):
                 return jsonify({"message": f"o horário tem de ser posterior ao atual",
                                 "status": "error"}), 400
             try: 
-                cur.execute(
-                    """
-                    DELETE FROM 
-                    consulta
-                    WHERE ssn = %(ssn)s AND nif = %(nif)s AND nome = %(nome)s AND data = %(data)s AND hora = %(hora)s;
-                    """,
-                    {"ssn": paciente, "nif": medico, "nome": clinica, "data": data, "hora": hora},
-                )
+                with conn.transaction():
+                    clinica_existe(cur, clinica)
+                    paciente_existe(cur, paciente)
+                    medico_existe(cur, medico)
+                    cur.execute(
+                        """
+                        DELETE FROM 
+                        consulta
+                        WHERE ssn = %(ssn)s AND nif = %(nif)s AND nome = %(nome)s AND data = %(data)s AND hora = %(hora)s;
+                        """,
+                        {"ssn": paciente, "nif": medico, "nome": clinica, "data": data, "hora": hora},
+                    )
             except Exception as e:
-                return jsonify({"message": organiza_erro(e), "status": "error"}), 400
-            
-            if cur.rowcount == 0:
-                return jsonify({"message": "Consulta não encontrada", "status": "error"}), 404
+                return jsonify({"message": str(e), "status": "error"}), 400
+            else:
+                if cur.rowcount == 0:
+                    return jsonify({"message": "consulta não encontrada", "status": "error"}), 404
 
     return "", 204
 
